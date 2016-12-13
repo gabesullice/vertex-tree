@@ -1,0 +1,19 @@
+{
+  "name": "vertex-tree",
+  "version": "0.0.0",
+  "description": "Data structure for storing 2D vertices and simple spatial query.",
+  "main": "index.js",
+  "scripts": {
+    "build": "babel src --out-dir lib",
+    "test": "ava tests -v",
+    "ava": "ava"
+ },
+  "repository": "git@github.com:gabesullice/shapes.git",
+  "author": "Gabriel SULLICE",
+  "license": "MIT",
+  "devDependencies": {
+    "ava": "^0.17.0",
+    "babel-cli": "^6.18.0",
+    "babel-preset-latest": "^6.16.0"
+  }
+}
