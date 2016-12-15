@@ -15,16 +15,8 @@ class Item {
   constructor(id, v) { this._id = id;
     this.id = id;
     this.vertex = v;
-    this._magnitude = magnitude(this.vertex);
-    this._angle = angle(v);
-  }
-
-  magnitude() {
-    return this._magnitude;
-  }
-
-  angle() {
-    return this._angle;
+    this.magnitude = magnitude(this.vertex);
+    this.angle = angle(v);
   }
 
 }
@@ -65,7 +57,8 @@ export default class VertexTree {
 function searchParameters(query) {
   const originMagnitude = magnitude(query.origin);
   const originAngle = angle(query.origin);
-  const angleDistance = Math.atan2(query.radius, originMagnitude);
+  //const angleDistance = Math.atan2(query.radius, originMagnitude);
+  const angleDistance = Math.asin(query.radius/originMagnitude);
   return {
     magnitudeMin: originMagnitude - query.radius,
     magnitudeMax: originMagnitude + query.radius,
@@ -77,24 +70,24 @@ function searchParameters(query) {
 function search(node, parameters) {
   if (node.bucket !== null) {
     return node.bucket.filter(item => {
-      const angle = item.angle();
+      const angle = item.angle;
       return (angle > parameters.angleMin && angle < parameters.angleMax);
     });
   } else {
     let leftItems = [], rightItems = [];
-    if (parameters.magnitudeMin <= node.midpoint && node.left !== null) {
+    if (node.left !== null && parameters.magnitudeMin <= node.midpoint) {
       leftItems = search(node.left, parameters);
     }
-    if (parameters.magnitudeMax > node.midpoint && node.right !== null) {
-      rightItems = search(node.right, parameters);
+    if (node.right !== null && parameters.magnitudeMax > node.midpoint) {
+      leftItems = leftItems.concat(search(node.right, parameters));
     }
-    return leftItems.concat(rightItems);
+    return leftItems;
   }
 }
 
 function insert(node, item) {
   if (node.depth < MAX_DEPTH) {
-    if (item.magnitude() < node.midpoint) {
+    if (item.magnitude < node.midpoint) {
       if (node.left === null) {
         node.left = new Node({
           depth: node.depth + 1,
@@ -115,6 +108,9 @@ function insert(node, item) {
     }
   } else {
     if (node.bucket === null) node.bucket = [];
-    node.bucket.push(item);
+    node.bucket.push(item)
+    // Sort is irrelevant at the moment, but could be used for a binary search
+    // later.
+    //node.bucket.sort((a, b) => { return (a.angle < b.angle) ? -1 : 1; });
   }
 }
