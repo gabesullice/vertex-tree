@@ -1,8 +1,8 @@
 {
   "name": "vertex-tree",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Data structure for storing 2D vertices in order to do an efficient simple spatial query.",
-  "main": "index.js",
+  "main": "lib/VertexTree.js",
   "scripts": {
     "babel": "babel",
     "build": "babel src --out-dir lib",
