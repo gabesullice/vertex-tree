@@ -1,6 +1,6 @@
 {
   "name": "vertex-tree",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Data structure for storing 2D vertices in order to do an efficient simple spatial query.",
   "main": "index.js",
   "scripts": {
