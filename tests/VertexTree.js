@@ -207,6 +207,28 @@ test("Can remove an edge from a VertexTree", t => {
   });
 });
 
+test("Can create new Items with tags", t => {
+  const vt = new VertexTree();
+  const tags = ["monkey"];
+  const item  = vt.newItem(new vertex.Vertex(0,0), { tags });
+  t.deepEqual(item.tags, tags);
+});
+
+test("Can insert edges with tags", t => {
+  const vt = new VertexTree();
+  const tags = ["monkey"];
+  vt.insertEdge(new Edge([[0,0],[10,10]]), tags);
+  t.deepEqual(vt.at(new vertex.Vertex(0,0)).tags, tags);
+});
+
+test("Can remove tags from an item", t => {
+  const vt = new VertexTree();
+  const tags = ["monkey"];
+  const item  = vt.newItem(new vertex.Vertex(0,0), { tags });
+  item.removeTag("monkey");
+  t.deepEqual(item.tags, []);
+});
+
 //test("Can find the nearest vertex in a VertexTree", t => {
 //  const vt = new VertexTree();
 //  const input = [[10,0], [0,10], [10, 50], [10,10], [50,50], [60,60], [50,40]];

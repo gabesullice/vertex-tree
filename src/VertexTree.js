@@ -13,11 +13,12 @@ function angle(v) {
 
 export class Item {
 
-  constructor(v, {edges = []} = {}) {
+  constructor(v, {edges = [], tags = []} = {}) {
     this.vertex = v;
     this.magnitude = magnitude(this.vertex);
     this.angle = angle(v);
     this.edges = edges;
+    this.tags = tags;
   }
 
   addEdge(insert) {
@@ -34,6 +35,20 @@ export class Item {
       return !edges.same(remove, edge);
     })
     return before > this.edges.length;
+  }
+
+  addTag(tag) {
+    if (this.tags.indexOf(tag) === -1) {
+      this.tags.push(tag);
+    }
+  }
+
+  removeTag(tag) {
+    const before = this.tags.length;
+    this.tags = this.tags.filter(cur => {
+      return tag !== cur
+    })
+    return before > this.tags.length;
   }
 
 }
@@ -92,13 +107,19 @@ export class VertexTree {
     return new Item(v, options);
   }
 
-  insertEdge(insert) {
+  insertEdge(insert, tags = []) {
     insert.vertices().forEach(v => {
       const item = this.at(v);
       if (item) {
         item.addEdge(insert);
+        tags.forEach(tag => {
+          item.addTag(tags);
+        });
       } else {
-        this.insert(v, {edges: [insert]});
+        this.insert(v, {
+          edges: [insert],
+          tags
+        });
       }
     });
   }
