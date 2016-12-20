@@ -12,25 +12,25 @@ test("Can insert a Vertex into a VertexTree", t => {
   const vt = new VertexTree();
   for (let i = 0; i < 100; i++) {
     const {x, y} = {x: Math.random() * 100, y: Math.random() * 100};
-    vt.insert("some-id", new vertex.Vertex(x, y));
+    vt.insert(new vertex.Vertex(x, y));
   }
 });
 
 test("Can insert an item into a VertexTree", t => {
   const vt = new VertexTree();
-  vt.insert(vt.newItem("some-id", new vertex.Vertex(0, 0)));
+  vt.insert(vt.newItem(new vertex.Vertex(0, 0)));
 });
 
 test("Can create a new item", t => {
   const vt = new VertexTree();
-  const item = vt.newItem("some-id", new vertex.Vertex(0,1));
+  const item = vt.newItem(new vertex.Vertex(0,1));
   t.true(item instanceof Item);
 });
 
 test("Can create a new item with edges", t => {
   const shape = new Shape([[0,0], [0,1], [1,0]]);
   const vt = new VertexTree();
-  const item = vt.newItem("some-id", new vertex.Vertex(0,1), {
+  const item = vt.newItem(new vertex.Vertex(0,1), {
     edges: shape.edges(),
   });
   t.deepEqual(item.edges, shape.edges());
@@ -39,7 +39,7 @@ test("Can create a new item with edges", t => {
 test("Can add an edge to an item", t => {
   const shape = new Shape([[0,0], [0,1], [1,0]]);
   const vt = new VertexTree();
-  const item = vt.newItem("some-id", new vertex.Vertex(0,1), {
+  const item = vt.newItem(new vertex.Vertex(0,1), {
     edges: shape.edges(),
   });
   item.addEdge(shape.edges()[0]);
@@ -52,7 +52,7 @@ test("Can add an edge to an item", t => {
 test("Can remove an edge from an item", t => {
   const shape = new Shape([[0,0], [0,1], [1,0]]);
   const vt = new VertexTree();
-  const item = vt.newItem("some-id", new vertex.Vertex(0,1), {
+  const item = vt.newItem(new vertex.Vertex(0,1), {
     edges: shape.edges(),
   });
   item.removeEdge(shape.edges()[0]);
@@ -63,13 +63,15 @@ test("Can query for vertices in a VertexTree", t => {
   const vt = new VertexTree();
   const input = [[10,0], [0,10], [10, 50], [10,10], [50,50], [60,60], [50,40]];
   input.forEach((point, index) => {
-    vt.insert(index, new vertex.Vertex(point[0], point[1]));
+    vt.insert(new vertex.Vertex(point[0], point[1]));
   });
   const cases = [
     {query: {origin: new vertex.Vertex(100, 0), radius: 10}, expected: []},
     {query: {origin: new vertex.Vertex(50, 50), radius: 10}, expected: [[50,50]]},
     {query: {origin: new vertex.Vertex(50, 50), radius: 11}, expected: [[50,40], [50,50]]},
     {query: {origin: new vertex.Vertex(50, 50), radius: 15}, expected: [[50,40], [50,50], [60,60]]},
+    {query: {origin: new vertex.Vertex(0, 0), radius: Math.sqrt(Math.pow(10, 2) * 2)}, expected: [[10,0], [0,10]]},
+    {query: {origin: new vertex.Vertex(0, 0), radius: Math.sqrt(Math.pow(10, 2) * 2) * 1.001}, expected: [[10,0], [0,10], [10,10]]},
   ];
   cases.forEach(item => {
     const actual = vt.find(item.query).map(item => {
@@ -79,38 +81,57 @@ test("Can query for vertices in a VertexTree", t => {
   });
 });
 
-test("Can find the nearest vertex in a VertexTree", t => {
+//test("Can find the nearest vertex in a VertexTree", t => {
+//  const vt = new VertexTree();
+//  const input = [[10,0], [0,10], [10, 50], [10,10], [50,50], [60,60], [50,40]];
+//  input.forEach((point, index) => {
+//    vt.insert(new vertex.Vertex(point[0], point[1]));
+//  });
+//  const cases = [
+//    {search: new vertex.Vertex(59, 59), expected: [[60,60]]},
+//    //{search: new vertex.Vertex(51, 51), expected: [[50,50]]},
+//    //{search: new vertex.Vertex(0, 1), expected: [[0,10]]},
+//  ];
+//  cases.forEach(item => {
+//    const actual = vt.nearest(item.search).map(item => {
+//      console.log(item);
+//      return [item.vertex.x, item.vertex.y];
+//    });
+//    t.deepEqual(actual, item.expected);
+//  });
+//});
+
+test("Can add an edge to VertexTree", t => {
   const vt = new VertexTree();
-  const input = [[10,0], [0,10], [10, 50], [10,10], [50,50], [60,60], [50,40]];
-  input.forEach((point, index) => {
-    vt.insert(index, new vertex.Vertex(point[0], point[1]));
-  });
   const cases = [
-    //{search: new vertex.Vertex(100, 0), expected: []},
-    {search: new vertex.Vertex(51, 51), expected: [[50,50]]},
-    //{search: new vertex.Vertex(50, 50), expected: [[50,40], [50,50]]},
-    //{search: new vertex.Vertex(50, 50), expected: [[50,40], [50,50], [60,60]]},
+    {insert: [[0,0], [0,1]], subtests: [
+      {query: [0,1], expect: 1, label: "A new edge should be inserted at 0,1"},
+    ]},
+    {insert: [[0,1], [1,0]], subtests: [
+      {query: [1,0], expect: 1, label: "A new edge should be inserted at 1,0"},
+      {query: [0,1], expect: 2, label: "Two edges should eminate from 0,1"},
+    ]},
+    {insert: [[1,0], [0,0]], subtests: [
+      {query: [0,0], expect: 2, label: "Two edges should eminate from 0,0"},
+    ]},
+    {insert: [[0,1], [1,1]], subtests: [
+      {query: [0,1], expect: 3, label: "Three edges should eminate from 0,1"},
+    ]},
+    {insert: [[1,1], [1,0]], subtests: [
+      {query: [1,0], expect: 3, label: "Three edges should eminate from 1,0"},
+    ]},
   ];
   cases.forEach(item => {
-    const actual = vt.nearest(item.search).map(item => {
-      return [item.vertex.x, item.vertex.y];
+    vt.insertEdge(new Edge(item.insert));
+    item.subtests.forEach(sub => {
+      t.is(
+        vt.at(new vertex.Vertex(sub.query[0], sub.query[1])).edges.length, 
+        sub.expect,
+        sub.label
+      );
     });
-    t.deepEqual(actual, item.expected);
   });
 });
-
-//test("Can add an edge to VertexTree", t => {
-//  const shape = new Shape([[0,0], [0,1], [1,0]]);
-//  const vt = new VertexTree();
-//  const item = vt.newItem("some-id", new vertex.Vertex(0,1), {
-//    edges: shape.edges(),
-//  });
-//
-//  const edge = new Edge([[0,0], [1,1]]);
-//  vt.addEdge(edge);
-//  const result = vt.find({origin: edge.left(), radius: 0.5});
-//  t.is(result[0].edges.length, 3, "A new edge should be inserted at 0,0");
-//});
 
 //test("Can remove vertices from a VertexTree", t => {
 //  const vt = new VertexTree();

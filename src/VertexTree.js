@@ -13,9 +13,7 @@ function angle(v) {
 
 export class Item {
 
-  constructor(id, v, {edges = 0} = {}) {
-    this._id = id;
-    this.id = id;
+  constructor(v, {edges = []} = {}) {
     this.vertex = v;
     this.magnitude = magnitude(this.vertex);
     this.angle = angle(v);
@@ -59,12 +57,15 @@ export class VertexTree {
     this._node = new Node(options);
   }
 
-  insert(id, v) {
-    if (id instanceof Item) {
-      insert(this._node, id);
-    } else {
-      insert(this._node, new Item(id, v));
+  insert(item, options) {
+    if (item instanceof Item) {
+      insert(this._node, item);
+      return true;
+    } else if (item instanceof vertex.Vertex) {
+      insert(this._node, new Item(item, options));
+      return true;
     }
+    return false;
   }
 
   find(query) {
@@ -77,21 +78,23 @@ export class VertexTree {
     return nearest(this._node, to)
   }
 
-  newItem(id, v, options) {
-    return new Item(id, v, options);
+  newItem(v, options) {
+    return new Item(v, options);
   }
 
-  addEdge(insert) {
+  insertEdge(insert) {
     insert.vertices().forEach(v => {
-      const item = this._itemAt(v);
+      const item = this.at(v);
       if (item) {
-        item.addEdge(edge);
+        item.addEdge(insert);
+      } else {
+        this.insert(v, {edges: [insert]});
       }
     });
   }
 
-  _itemAt(v) {
-
+  at(v) {
+    return at(this._node, v);
   }
 
 }
@@ -99,13 +102,48 @@ export class VertexTree {
 function searchParameters(query) {
   const originMagnitude = magnitude(query.origin);
   const originAngle = angle(query.origin);
-  const angleDistance = Math.asin(query.radius/originMagnitude);
+  let angleDistance;
+  if (originMagnitude == 0) {
+    angleDistance = Math.PI;
+  } else {
+    angleDistance = Math.asin(query.radius/originMagnitude);
+  }
   return {
     magnitudeMin: originMagnitude - query.radius,
     magnitudeMax: originMagnitude + query.radius,
     angleMin: originAngle - angleDistance,
     angleMax: originAngle + angleDistance
   };
+}
+
+function at(node, term) {
+  const termMagnitude = magnitude(term);
+
+  const bottom = function (node) {
+    return node.bucket.find(item => {
+      return vertex.same(item.vertex, term);
+    });
+  }
+
+  const into = function (node, recurse) {
+    if (node.left !== null && termMagnitude < node.midpoint) {
+      return recurse(node.left);
+    } else if (node.right !== null) {
+      return recurse(node.right);
+    }
+    return null;
+  }
+
+  const out = function (left, right) {
+    return (left) ? left : right;
+  }
+
+  return treeTraverser(
+    searchBase,
+    bottom,
+    into,
+    out,
+  )(node);
 }
 
 function nearest(node, term) {
@@ -136,7 +174,6 @@ function nearest(node, term) {
 
   return [treeTraverser(
     searchBase,
-    //searchBottom(parameters),
     insertBottom,
     searchInto(parameters, this),
     function (left, right) {
@@ -167,7 +204,7 @@ function treeTraverser(base, bottom, into, outof) {
     if (base(node)) {
       return bottom(node);
     } else {
-      return outof(...into(node, self));
+      return outof(into(node, self));
     }
   }
   return self;
@@ -199,8 +236,8 @@ function searchInto(parameters) {
   };
 }
 
-function searchOutof(left, right) {
-  return left.concat(right);
+function searchOutof(tuple) {
+  return tuple[0].concat(tuple[1]);
 };
 
 function insert(node, item) {
