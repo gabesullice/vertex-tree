@@ -60,10 +60,10 @@ export class VertexTree {
   }
 
   insert(item, options) {
-    if (item instanceof Item) {
+    if (item.constructor.name === Item.name) {
       insert(this._node, item);
       return true;
-    } else if (item instanceof vertex.Vertex) {
+    } else if (item.constructor.name === vertex.Vertex.name) {
       insert(this._node, new Item(item, options));
       return true;
     }
