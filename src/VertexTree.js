@@ -1,4 +1,5 @@
 import * as vertex from "libshapes/lib/Vertex";
+import * as edges from "libshapes/lib/Edge";
 
 const MAX_DEPTH = 6;
 
@@ -10,13 +11,29 @@ function angle(v) {
   return Math.atan2(v.y, v.x);
 }
 
-class Item {
+export class Item {
 
-  constructor(id, v) { this._id = id;
+  constructor(id, v, {edges = 0} = {}) {
+    this._id = id;
     this.id = id;
     this.vertex = v;
     this.magnitude = magnitude(this.vertex);
     this.angle = angle(v);
+    this.edges = edges;
+  }
+
+  addEdge(insert) {
+    if (this.edges.find(edge => {
+      return edges.same(insert, edge);
+    }) === undefined) {
+      this.edges.push(insert);
+    };
+  }
+
+  removeEdge(remove) {
+    this.edges = this.edges.filter(edge => {
+      return !edges.same(remove, edge);
+    })
   }
 
 }
@@ -35,7 +52,7 @@ class Node {
 
 }
 
-export default class VertexTree {
+export class VertexTree {
 
   constructor(options = {leftBound: 0, rightBound: 100}) {
     options.depth = 0;
@@ -43,7 +60,11 @@ export default class VertexTree {
   }
 
   insert(id, v) {
-    insert(this._node, new Item(id, v));
+    if (id instanceof Item) {
+      insert(this._node, id);
+    } else {
+      insert(this._node, new Item(id, v));
+    }
   }
 
   find(query) {
@@ -52,12 +73,32 @@ export default class VertexTree {
     });
   }
 
+  nearest(to) {
+    return nearest(this._node, to)
+  }
+
+  newItem(id, v, options) {
+    return new Item(id, v, options);
+  }
+
+  addEdge(insert) {
+    insert.vertices().forEach(v => {
+      const item = this._itemAt(v);
+      if (item) {
+        item.addEdge(edge);
+      }
+    });
+  }
+
+  _itemAt(v) {
+
+  }
+
 }
 
 function searchParameters(query) {
   const originMagnitude = magnitude(query.origin);
   const originAngle = angle(query.origin);
-  //const angleDistance = Math.atan2(query.radius, originMagnitude);
   const angleDistance = Math.asin(query.radius/originMagnitude);
   return {
     magnitudeMin: originMagnitude - query.radius,
@@ -67,26 +108,112 @@ function searchParameters(query) {
   };
 }
 
+function nearest(node, term) {
+  let parameters = {
+    magnitudeMin: 0,
+    magnitudeMax: node.rightBound,
+    angleMin: 0,
+    angleMax: Math.PI/2,
+  };
+
+  let minimumDistance;
+  const insertBottom = function (node) {
+    return node.bucket.filter(item => {
+      const angle = item.angle;
+      return (angle > parameters.angleMin && angle < parameters.angleMax);
+    }).reduce((found, item) => {
+      const distance = vertex.distance(term, item.vertex);
+      if (minimumDistance === undefined || distance < minimumDistance) {
+        item._distance = distance;
+        minimumDistance = distance;
+        parameters = searchParameters({origin: term, radius: distance});
+        parameters = searchParameters({origin: term, radius: distance});
+        found = item;
+      } 
+      return found;
+    }, []);
+  }
+
+  return [treeTraverser(
+    searchBase,
+    //searchBottom(parameters),
+    insertBottom,
+    searchInto(parameters, this),
+    function (left, right) {
+      if (Array.isArray(left) && Array.isArray(right)) {
+        return [];
+      } else if (Array.isArray(left)) {
+        return right;
+      } else if (Array.isArray(right)) {
+        return left;
+      } else {
+        return (left._distance < right._distance) ? left : right;
+      }
+    },
+  )(node)];
+}
+
 function search(node, parameters) {
-  if (node.bucket !== null) {
+  return treeTraverser(
+    searchBase,
+    searchBottom(parameters),
+    searchInto(parameters),
+    searchOutof
+  )(node);
+}
+
+function treeTraverser(base, bottom, into, outof) {
+  const self = function(node) {
+    if (base(node)) {
+      return bottom(node);
+    } else {
+      return outof(...into(node, self));
+    }
+  }
+  return self;
+}
+
+function searchBase(node) {
+  return node.bucket !== null;
+}
+
+function searchBottom(parameters) {
+  return function (node) {
     return node.bucket.filter(item => {
       const angle = item.angle;
       return (angle > parameters.angleMin && angle < parameters.angleMax);
     });
-  } else {
-    let leftItems = [], rightItems = [];
-    if (node.left !== null && parameters.magnitudeMin <= node.midpoint) {
-      leftItems = search(node.left, parameters);
-    }
-    if (node.right !== null && parameters.magnitudeMax > node.midpoint) {
-      leftItems = leftItems.concat(search(node.right, parameters));
-    }
-    return leftItems;
-  }
+  };
 }
 
+function searchInto(parameters) {
+  return function (node, recurse) {
+    let leftItems = [], rightItems = [];
+    if (node.left !== null && parameters.magnitudeMin <= node.midpoint) {
+      leftItems = recurse(node.left, parameters);
+    }
+    if (node.right !== null && parameters.magnitudeMax > node.midpoint) {
+      rightItems = recurse(node.right, parameters);
+    }
+    return [leftItems, rightItems];
+  };
+}
+
+function searchOutof(left, right) {
+  return left.concat(right);
+};
+
 function insert(node, item) {
-  if (node.depth < MAX_DEPTH) {
+  const base = function (node) {
+    return node.depth >= MAX_DEPTH;
+  };
+
+  const bottom = function (node) {
+    if (node.bucket === null) node.bucket = [];
+    node.bucket.push(item)
+  };
+
+  const into = function (node) {
     if (item.magnitude < node.midpoint) {
       if (node.left === null) {
         node.left = new Node({
@@ -95,7 +222,7 @@ function insert(node, item) {
           rightBound: node.midpoint
         });
       }
-      insert(node.left, item);
+      _insert(node.left, item);
     } else {
       if (node.right === null) {
         node.right = new Node({
@@ -104,13 +231,14 @@ function insert(node, item) {
           rightBound: node.rightBound
         });
       }
-      insert(node.right, item);
+      _insert(node.right, item);
     }
-  } else {
-    if (node.bucket === null) node.bucket = [];
-    node.bucket.push(item)
-    // Sort is irrelevant at the moment, but could be used for a binary search
-    // later.
-    //node.bucket.sort((a, b) => { return (a.angle < b.angle) ? -1 : 1; });
-  }
+    return [];
+  };
+
+  const outof = function () {};
+
+  const _insert = treeTraverser(base, bottom, into, outof);
+
+  _insert(node);
 }
