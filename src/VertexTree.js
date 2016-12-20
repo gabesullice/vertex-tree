@@ -29,9 +29,11 @@ export class Item {
   }
 
   removeEdge(remove) {
+    const before = this.edges.length;
     this.edges = this.edges.filter(edge => {
       return !edges.same(remove, edge);
     })
+    return before > this.edges.length;
   }
 
 }
@@ -101,6 +103,15 @@ export class VertexTree {
     });
   }
 
+  removeEdge(remove) {
+    return remove.vertices().reduce((removed, v) => {
+      let didRemove = false;
+      const item = this.at(v);
+      if (item) didRemove = item.removeEdge(remove);
+      return (removed || didRemove) ? true : false;
+    }, false);
+  }
+
 }
 
 function searchParameters(query) {
@@ -149,7 +160,7 @@ function intoExact(term) {
     } else if (node.right !== null) {
       return recurse(node.right);
     }
-    return null;
+    return undefined;
   }
 }
 

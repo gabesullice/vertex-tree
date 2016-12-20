@@ -88,23 +88,16 @@ test("Can get an item by its vertex", t => {
     vt.insert(new vertex.Vertex(point[0], point[1]));
   });
   const cases = [
-    {query: [10,0], expect: "truthy"},
-    {query: [10,50], expect: "truthy"},
-    {query: [0,0], expect: "falsy"},
-    {query: [50,40], expect: "truthy"},
-    {query: [33,33], expect: "falsy"},
+    {query: [10,0], expect: "object"},
+    {query: [10,50], expect: "object"},
+    {query: [0,0], expect: "undefined"},
+    {query: [50,40], expect: "object"},
+    {query: [33,33], expect: "undefined"},
   ];
   cases.forEach(item => {
     const point = new vertex.Vertex(item.query[0], item.query[1]);
     const found = vt.at(point);
-    switch (item.expect) {
-      case "truthy":
-        t.truthy(found);
-        break;
-      case "falsy":
-        t.falsy(found);
-        break;
-    }
+    t.is(typeof(found), item.expect);
   });
 });
 
@@ -171,6 +164,44 @@ test("Can remove vertices from a VertexTree", t => {
         case "falsy":
           t.falsy(found);
           break;
+      }
+    });
+  });
+});
+
+test("Can remove an edge from a VertexTree", t => {
+  const vt = new VertexTree();
+  const input = [
+    [[0,0], [0,10]],
+    [[0,10], [10,10]],
+    [[10,10], [10,0]],
+    [[10,0], [0,0]],
+  ];
+  input.forEach(edge => {
+    vt.insertEdge(new Edge(edge));
+  });
+  const cases = [
+    {remove: [], subtests: [{query: [0,0], length: 2}]},
+    {remove: [[[0,0], [0,10]]], subtests: [
+      {query: [0,0], length: 1},
+      {query: [0,10], length: 1},
+    ], didRemove: true},
+    {remove: [[[10,0], [0,0]]], subtests: [
+      {query: [0,0], length: 0},
+      {query: [10,0], length: 1},
+    ], didRemove: true},
+    {remove: [], subtests: [{query: [20,20], length: 0}]},
+    {remove: [[[30,30], [50,50]]], subtests: [{query: [20,20], length: 0}], didRemove: false},
+  ];
+  cases.forEach(item => {
+    item.remove.forEach(edge => {
+      const result = vt.removeEdge(new Edge(edge));
+      t.is(result, item.didRemove);
+    });
+    item.subtests.forEach(sub => {
+      const found = vt.at(new vertex.Vertex(sub.query[0], sub.query[1]));
+      if (found) {
+        t.is(found.edges.length, sub.length);
       }
     });
   });
