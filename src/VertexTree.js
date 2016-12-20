@@ -68,6 +68,14 @@ export class VertexTree {
     return false;
   }
 
+  remove(item) {
+    return remove(this._node, item);
+  }
+
+  at(v) {
+    return at(this._node, v);
+  }
+
   find(query) {
     return search(this._node, searchParameters(query)).filter(item => {
       return (vertex.distance(query.origin, item.vertex) < query.radius);
@@ -93,10 +101,6 @@ export class VertexTree {
     });
   }
 
-  at(v) {
-    return at(this._node, v);
-  }
-
 }
 
 function searchParameters(query) {
@@ -117,25 +121,16 @@ function searchParameters(query) {
 }
 
 function at(node, term) {
-  const termMagnitude = magnitude(term);
-
   const bottom = function (node) {
     return node.bucket.find(item => {
       return vertex.same(item.vertex, term);
     });
   }
 
-  const into = function (node, recurse) {
-    if (node.left !== null && termMagnitude < node.midpoint) {
-      return recurse(node.left);
-    } else if (node.right !== null) {
-      return recurse(node.right);
-    }
-    return null;
-  }
+  const into = intoExact(term);
 
-  const out = function (left, right) {
-    return (left) ? left : right;
+  const out = function (result) {
+    return result;
   }
 
   return treeTraverser(
@@ -144,6 +139,18 @@ function at(node, term) {
     into,
     out,
   )(node);
+}
+
+function intoExact(term) {
+  const termMagnitude = magnitude(term);
+  return function (node, recurse) {
+    if (node.left !== null && termMagnitude < node.midpoint) {
+      return recurse(node.left);
+    } else if (node.right !== null) {
+      return recurse(node.right);
+    }
+    return null;
+  }
 }
 
 function nearest(node, term) {
@@ -276,6 +283,29 @@ function insert(node, item) {
   const outof = function () {};
 
   const _insert = treeTraverser(base, bottom, into, outof);
+
+  _insert(node);
+}
+
+function remove(node, term) {
+  const bottom = function (node) {
+    const before = node.bucket.length;
+    node.bucket = node.bucket.filter(item => {
+      return !vertex.same(item.vertex, term);
+    })
+    return before > node.bucket.length; 
+  };
+
+  const outof = function (result) {
+    return (result) ? true : false;
+  };
+
+  const _insert = treeTraverser(
+    searchBase,
+    bottom,
+    intoExact(term),
+    outof
+  );
 
   _insert(node);
 }

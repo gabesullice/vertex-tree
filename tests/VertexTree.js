@@ -81,25 +81,32 @@ test("Can query for vertices in a VertexTree", t => {
   });
 });
 
-//test("Can find the nearest vertex in a VertexTree", t => {
-//  const vt = new VertexTree();
-//  const input = [[10,0], [0,10], [10, 50], [10,10], [50,50], [60,60], [50,40]];
-//  input.forEach((point, index) => {
-//    vt.insert(new vertex.Vertex(point[0], point[1]));
-//  });
-//  const cases = [
-//    {search: new vertex.Vertex(59, 59), expected: [[60,60]]},
-//    //{search: new vertex.Vertex(51, 51), expected: [[50,50]]},
-//    //{search: new vertex.Vertex(0, 1), expected: [[0,10]]},
-//  ];
-//  cases.forEach(item => {
-//    const actual = vt.nearest(item.search).map(item => {
-//      console.log(item);
-//      return [item.vertex.x, item.vertex.y];
-//    });
-//    t.deepEqual(actual, item.expected);
-//  });
-//});
+test("Can get an item by its vertex", t => {
+  const vt = new VertexTree();
+  const input = [[10,0], [0,10], [10, 50], [10,10], [50,50], [60,60], [50,40]];
+  input.forEach((point, index) => {
+    vt.insert(new vertex.Vertex(point[0], point[1]));
+  });
+  const cases = [
+    {query: [10,0], expect: "truthy"},
+    {query: [10,50], expect: "truthy"},
+    {query: [0,0], expect: "falsy"},
+    {query: [50,40], expect: "truthy"},
+    {query: [33,33], expect: "falsy"},
+  ];
+  cases.forEach(item => {
+    const point = new vertex.Vertex(item.query[0], item.query[1]);
+    const found = vt.at(point);
+    switch (item.expect) {
+      case "truthy":
+        t.truthy(found);
+        break;
+      case "falsy":
+        t.falsy(found);
+        break;
+    }
+  });
+});
 
 test("Can add an edge to VertexTree", t => {
   const vt = new VertexTree();
@@ -133,23 +140,58 @@ test("Can add an edge to VertexTree", t => {
   });
 });
 
-//test("Can remove vertices from a VertexTree", t => {
+test("Can remove vertices from a VertexTree", t => {
+  const vt = new VertexTree();
+  const input = [[10,0], [0,10], [10, 50], [10,10], [50,50], [60,60], [50,40]];
+  input.forEach((point, index) => {
+    vt.insert(new vertex.Vertex(point[0], point[1]));
+  });
+  const cases = [
+    {remove: [10,0], subtests: [
+      {query: [10,0], expect: "falsy"},
+      {query: [10,50], expect: "truthy"},
+      {query: [0,10], expect: "truthy"},
+    ]},
+    {remove: [0,10], subtests: [{query: [0,10], expect: "falsy"}]},
+    {remove: [50,50], subtests: [{query: [50,50], expect: "falsy"}]},
+    {remove: [10,12], subtests: [
+      {query: [10,12], expect: "falsy"},
+      {query: [60,60], expect: "truthy"},
+    ]},
+  ];
+  cases.forEach(item => {
+    vt.remove(new vertex.Vertex(item.remove[0], item.remove[1]));
+    item.subtests.forEach(sub => {
+      const point = new vertex.Vertex(sub.query[0], sub.query[1]);
+      const found = vt.at(point);
+      switch (sub.expect) {
+        case "truthy":
+          t.truthy(found);
+          break;
+        case "falsy":
+          t.falsy(found);
+          break;
+      }
+    });
+  });
+});
+
+//test("Can find the nearest vertex in a VertexTree", t => {
 //  const vt = new VertexTree();
 //  const input = [[10,0], [0,10], [10, 50], [10,10], [50,50], [60,60], [50,40]];
 //  input.forEach((point, index) => {
-//    vt.insert(index, new vertex.Vertex(point[0], point[1]));
+//    vt.insert(new vertex.Vertex(point[0], point[1]));
 //  });
 //  const cases = [
-//    {remove: new vertex.Vertex(10, 0),  expected: 6},
-//    {remove: new vertex.Vertex(0, 10),  expected: 6},
-//    {remove: new vertex.Vertex(50, 50), expected: 6},
-//    {remove: new vertex.Vertex(10, 12), expected: 7},
+//    {search: new vertex.Vertex(59, 59), expected: [[60,60]]},
+//    //{search: new vertex.Vertex(51, 51), expected: [[50,50]]},
+//    //{search: new vertex.Vertex(0, 1), expected: [[0,10]]},
 //  ];
 //  cases.forEach(item => {
-//    vt.remove(item.remove);
-//    const result = vt.find({origin: item.remove, radius: 1000}).map(item => {
+//    const actual = vt.nearest(item.search).map(item => {
+//      console.log(item);
 //      return [item.vertex.x, item.vertex.y];
-//    })
-//    t.deepEqual(result.length, item.expected);
+//    });
+//    t.deepEqual(actual, item.expected);
 //  });
 //});
