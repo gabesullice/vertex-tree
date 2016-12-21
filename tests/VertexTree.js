@@ -43,10 +43,10 @@ test("Can add an edge to an item", t => {
     edges: shape.edges(),
   });
   item.addEdge(shape.edges()[0]);
-  t.is(item.edges.length, shape.edges().length, "Edges should not be duplicated");
+  t.is(item.edges.length, shape.edges().length + 1, "Edges should not be deduplicated");
 
   item.addEdge(new Edge([[0,0], [1,1]]));
-  t.is(item.edges.length, shape.edges().length + 1, "A new edge should be inserted");
+  t.is(item.edges.length, shape.edges().length + 2, "A new edge should be inserted");
 });
 
 test("Can remove an edge from an item", t => {
@@ -57,6 +57,11 @@ test("Can remove an edge from an item", t => {
   });
   item.removeEdge(shape.edges()[0]);
   t.is(item.edges.length, shape.edges().length - 1, "An edge should be removed");
+
+  item.addEdge(shape.edges()[0]); // add removed back in
+  item.addEdge(shape.edges()[0]); // add it again
+  item.removeEdge(shape.edges()[0]); // remove it once
+  t.is(item.edges.length, shape.edges().length, "Only one edge should be removed at a time");
 });
 
 test("Can query for vertices in a VertexTree", t => {

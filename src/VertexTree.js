@@ -22,18 +22,17 @@ export class Item {
   }
 
   addEdge(insert) {
-    if (this.edges.find(edge => {
-      return edges.same(insert, edge);
-    }) === undefined) {
-      this.edges.push(insert);
-    };
+    this.edges.push(insert);
   }
 
   removeEdge(remove) {
     const before = this.edges.length;
-    this.edges = this.edges.filter(edge => {
-      return !edges.same(remove, edge);
-    })
+    const index = this.edges.findIndex(edge => {
+      return edges.same(remove, edge);
+    });
+    if (index !== -1) {
+      this.edges.splice(index, 1);
+    }
     return before > this.edges.length;
   }
 
