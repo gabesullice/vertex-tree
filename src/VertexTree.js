@@ -128,6 +128,9 @@ export class VertexTree {
       let didRemove = false;
       const item = this.at(v);
       if (item) didRemove = item.removeEdge(remove);
+      if (didRemove && item.edges.length === 0) {
+        this.remove(item.vertex);
+      }
       return (removed || didRemove) ? true : false;
     }, false);
   }

@@ -49,19 +49,35 @@ test("Can add an edge to an item", t => {
   t.is(item.edges.length, shape.edges().length + 2, "A new edge should be inserted");
 });
 
-test("Can remove an edge from an item", t => {
+test("Can remove an edges from a VertexTree", t => {
   const shape = new Shape([[0,0], [0,1], [1,0]]);
   const vt = new VertexTree();
-  const item = vt.newItem(new vertex.Vertex(0,1), {
-    edges: shape.edges(),
+  shape.edges().forEach(edge => {
+    vt.insertEdge(edge);
   });
-  item.removeEdge(shape.edges()[0]);
-  t.is(item.edges.length, shape.edges().length - 1, "An edge should be removed");
+  const item = vt.at(shape.vertices()[0]);
+  t.is(item.edges.length, 2, "Edges should be added");
+  vt.removeEdge(shape.edges()[0]);
+  t.is(item.edges.length, 1, "An edge should be removed");
 
-  item.addEdge(shape.edges()[0]); // add removed back in
-  item.addEdge(shape.edges()[0]); // add it again
-  item.removeEdge(shape.edges()[0]); // remove it once
-  t.is(item.edges.length, shape.edges().length, "Only one edge should be removed at a time");
+  vt.insertEdge(shape.edges()[0]); // add removed back in
+  vt.insertEdge(shape.edges()[0]); // add it again
+  vt.removeEdge(shape.edges()[0]); // remove it once
+  t.is(item.edges.length, 2, "Only one edge should be removed at a time");
+});
+
+test("Removing the last edge from an item removes the item", t => {
+  const shape = new Shape([[0,0], [0,1], [1,0]]);
+  const vt = new VertexTree();
+  shape.edges().forEach(edge => {
+    vt.insertEdge(edge);
+  });
+  let item = vt.at(shape.vertices()[0]);
+  t.truthy(item, "There should be an item at (0,0)");
+  vt.removeEdge(shape.edges()[0]);
+  t.truthy(vt.at(shape.vertices()[0]), "Removing one incoming edge to (0,0) should not remove the item");
+  vt.removeEdge(shape.edges()[2]);
+  t.falsy(vt.at(shape.vertices()[0]), "Removing the incoming edges to (0,0) should remove the item");
 });
 
 test("Can query for vertices in a VertexTree", t => {
