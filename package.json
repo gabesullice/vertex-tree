@@ -1,6 +1,6 @@
 {
   "name": "vertex-tree",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Data structure for storing 2D vertices in order to do an efficient simple spatial query.",
   "main": "lib/VertexTree.js",
   "scripts": {
@@ -18,6 +18,6 @@
     "babel-preset-latest": "^6.16.0"
   },
   "dependencies": {
-    "libshapes": "^0.10.2"
+    "libshapes": "^0.11.0"
   }
 }
