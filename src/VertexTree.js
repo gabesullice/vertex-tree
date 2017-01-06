@@ -111,9 +111,7 @@ export class VertexTree {
       const item = this.at(v);
       if (item) {
         item.addEdge(insert);
-        tags.forEach(tag => {
-          item.addTag(tags);
-        });
+        tags.forEach(tag => item.addTag(tag));
       } else {
         this.insert(v, {
           edges: [insert],
