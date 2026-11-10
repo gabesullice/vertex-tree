@@ -51,6 +51,28 @@ search queries. **Real embeddings will differ.**
 | 64 | rotated 1-bit | 0.79909 | 0.77287 | 0.508 |
 | 2 | progressive (sector only) | 0.89235 | 0.82184 | 0.277 |
 
+**D = 1536** (`python3 -m modcomp.qs_bench --dim 1536`; float32 = 8192 chars,
+float16 = 4096 chars). This is the size of e.g. OpenAI `text-embedding-3-small`.
+
+| chars | codec | cos mean | cos worst 1% | recall@10 | shared state |
+|---:|---|---:|---:|---:|---|
+| 2048 | rotated 8-bit | 0.99996 | 0.99985 | 0.995 | seed |
+| **1536** | **rotated 6-bit** | **0.99949** | **0.99906** | **0.976** | seed |
+| 1029 | sector 1024 + 4-bit correction | 0.99875 | 0.99809 | 0.959 | 6 MiB centroids |
+| 1024 | rotated 4-bit | 0.99425 | 0.99270 | 0.924 | seed |
+| 773 | sector 1024 + 3-bit correction | 0.99591 | 0.99427 | 0.926 | 6 MiB centroids |
+| 517 | sector 1024 + 2-bit correction | 0.98698 | 0.98236 | 0.861 | 6 MiB centroids |
+| 514 | progressive (full) | 0.98777 | 0.98245 | 0.862 | 10.5 MiB codebooks |
+| 512 | rotated 2-bit | 0.93876 | 0.93275 | 0.770 | seed |
+| 258 | progressive (prefix) | 0.96357 | 0.95060 | 0.739 | 10.5 MiB codebooks |
+| 256 | rotated 1-bit | 0.79766 | 0.78540 | 0.580 | seed |
+
+Characters scale linearly with D, and quality per bit per dimension is about
+the same as at D=384. Under a ~2000-char URL budget, rotated 6-bit (1536
+chars, nothing to ship but a seed) is the precise option. Sector + 4-bit
+correction gets nearly the same precision in 1029 chars if both sides can
+hold a centroid table.
+
 What the run shows:
 
 1. **With no shared model, rotate first.** A fixed random rotation makes every

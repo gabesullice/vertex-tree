@@ -1,6 +1,7 @@
 """How precise a coordinate can you fit in N query-string characters?
 
     python3 -m modcomp.qs_bench                    # synthetic, D=384
+    python3 -m modcomp.qs_bench --dim 1536         # synthetic, D=1536
     python3 -m modcomp.qs_bench --input emb.npy    # real embeddings (n, D)
 
 Each held-out query vector is encoded to a string, decoded, and the decoded
@@ -51,6 +52,8 @@ def main(argv=None):
     p.add_argument("--queries", type=int, default=300)
     p.add_argument("--k", type=int, default=10)
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--dim", type=int, default=384, help="synthetic dimension")
+    p.add_argument("--n", type=int, default=20_000, help="synthetic database size")
     a = p.parse_args(argv)
 
     if a.input:
@@ -59,16 +62,23 @@ def main(argv=None):
         perm = np.random.default_rng(a.seed).permutation(len(X))
         queries, db = X[perm[:a.queries]], X[perm[a.queries:]]
     else:
-        db, queries = E.synthetic_embeddings(n_queries=a.queries, seed=a.seed)
+        db, queries = E.synthetic_embeddings(n=a.n, n_queries=a.queries, d=a.dim,
+                                              seed=a.seed)
     n, d = db.shape
     print(f"{n:,} database vectors, {len(queries)} held-out query vectors, D={d}")
     print(f"reference: float32 = {qs.chars_for_bits(32 * d):,} chars, "
           f"float16 = {qs.chars_for_bits(16 * d):,} chars\n")
     print(f"{'codec':<34} {'chars':>6} {'cos mean':>9} {'cos p1':>8} "
           f"{f'recall@{a.k}':>10} {'shared KiB':>10} {'sec':>5}")
+    shared_sectors = None
     for c in codecs(d):
         t = time.time()
-        c.fit(db)
+        if isinstance(c, qs.SectorRot) and shared_sectors is not None:
+            c.C, c.model_bytes = shared_sectors.C, shared_sectors.model_bytes
+        else:
+            c.fit(db)
+            if isinstance(c, qs.SectorRot):
+                shared_sectors = c  # same centroids for every correction width
         chars, cm, c1, rec, _ = evaluate(c, db, queries, a.k)
         print(f"{c.name:<34} {chars:>6,} {cm:>9.5f} {c1:>8.5f} {rec:>10.3f} "
               f"{c.model_bytes / 1024:>10,.0f} {time.time() - t:>5.1f}")
