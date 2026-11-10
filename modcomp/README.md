@@ -3,6 +3,76 @@
 Self-contained experiment (Python + numpy only). It shares no code with the
 rest of the repository.
 
+## One embedding in a query string (`qs.py`, `qs_bench.py`)
+
+Goal: fit one precise "coordinate" (an embedding) into a URL parameter.
+
+* **Alphabet:** base64url (`A–Z a–z 0–9 - _`), which is unreserved in URLs, so no
+  percent-escaping is needed. Bits are written straight into characters, so B
+  bits take exactly `ceil(B/6)` characters, with no padding.
+* **Shared state:** with a single vector there is nothing to share within the
+  data. Any learned "sectors" must be known to both the encoder and the
+  decoder, like a map both sides hold.
+
+```python
+from modcomp import qs
+codec = qs.RotScalar(d=384, bits=4)       # no training, shared state = a seed
+url = "https://example.com/search?v=" + codec.encode(vec)   # 256 chars
+vec2 = codec.decode(param)                # unit vector, cos ≈ 0.994
+
+codec = qs.SectorRot(384, k=1024, bits=2).fit(corpus)   # shared centroid table
+codec = qs.Progressive(1024, [24, 24, 48]).fit(corpus)  # geohash-like
+```
+
+Codecs:
+
+| codec | layout | shared state |
+|---|---|---|
+| `RotScalar` | fixed seeded rotation, then b bits per coordinate (Gaussian-optimal uniform step) | a seed |
+| `SectorRot` | **sector** (nearest of k centroids) + float16 scale + rotated b-bit **correction** | k × D centroid table |
+| `Progressive` | sector, then a chain of PQ-coded corrections; **any stage-boundary prefix decodes** | centroids + PQ codebooks |
+
+Synthetic run (`python3 -m modcomp.qs_bench`, D=384; float32 = 2048 chars,
+float16 = 1024 chars). Held-out vectors are encoded, decoded, and used as
+search queries. **Real embeddings will differ.**
+
+| chars | codec | cos mean | cos worst 1% | recall@10 |
+|---:|---|---:|---:|---:|
+| 512 | rotated 8-bit | 0.99996 | 0.99996 | 0.989 |
+| 384 | rotated 6-bit | 0.99951 | 0.99890 | 0.971 |
+| 256 | rotated 4-bit | 0.99439 | 0.99181 | 0.906 |
+| 261 | sector 1024 + 4-bit correction | 0.99884 | 0.99776 | 0.952 |
+| 197 | sector 1024 + 3-bit correction | 0.99624 | 0.99361 | 0.922 |
+| 128 | rotated 2-bit | 0.93925 | 0.92835 | 0.713 |
+| 133 | sector 1024 + 2-bit correction | 0.98796 | 0.98044 | 0.847 |
+| 130 | progressive (full) | 0.98924 | 0.98223 | 0.860 |
+| 66 | progressive (prefix) | 0.96808 | 0.95242 | 0.739 |
+| 69 | sector 1024 + 1-bit correction | 0.96259 | 0.94111 | 0.678 |
+| 64 | rotated 1-bit | 0.79909 | 0.77287 | 0.508 |
+| 2 | progressive (sector only) | 0.89235 | 0.82184 | 0.277 |
+
+What the run shows:
+
+1. **With no shared model, rotate first.** A fixed random rotation makes every
+   coordinate look alike (no outlier dims), so one quantizer step fits all of
+   them and no per-dimension ranges need shipping. At the same 256 chars,
+   recall goes from 0.698 unrotated to 0.906 rotated.
+2. **A shared codebook roughly halves the string for the same precision.**
+   Sector + 3-bit correction (197 chars) beats rotated 4-bit (256 chars).
+   Sector + 2-bit (133 chars) is far better than rotated 2-bit (128 chars).
+3. **Progressive codes behave like a geohash.** The first 2 chars name the
+   sector, and each further block of chars refines the position. At about
+   130 chars it slightly beats sector + scalar correction, and shortened
+   strings still decode.
+4. The rotation must not line up with the data's own structure. A first run
+   accidentally reused the synthetic generator's seed, which undid the
+   rotation and cost a lot of precision, so the rotation now has its own fixed
+   seed (`qs.ROTATION_SEED`).
+
+Practical note: the rotation matrix comes from numpy's seeded RNG and QR. An
+encoder or decoder in another language should ship the matrix itself, or use
+a portable construction (e.g. a randomized Hadamard transform).
+
 ## Embeddings (`embed.py`, `embed_bench.py`)
 
 The target data is embeddings, so the goal is **lossy**: keep nearest-neighbour
@@ -163,6 +233,7 @@ modulus, delta-coding `q` along the array order. Run it with
 
 ## Files
 
+* `qs.py`, `qs_bench.py`: one embedding <-> URL-safe string (rotated scalar, sector + correction, progressive)
 * `embed.py`, `embed_bench.py`: embedding methods (grid, scalar, k-means + residual, PQ), recall/cosine evaluation, synthetic embeddings
 * `sector.py`: `SectorGrid`, fixed-point conversion, the `MSEC` container (4 modes), `stats`
 * `sector_bench.py`: synthetic [0,1] datasets and the CLI report
