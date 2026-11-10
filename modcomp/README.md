@@ -3,7 +3,60 @@
 Self-contained experiment (Python + numpy only). It shares no code with the
 rest of the repository.
 
-## The idea
+## Embeddings (`embed.py`, `embed_bench.py`)
+
+The target data is embeddings, so the goal is **lossy**: keep nearest-neighbour
+search working with as few bits as possible. Every method is scored by bits
+per vector, mean `cos(x, x̂)`, and recall@10. Queries are uncompressed and
+search the reconstructed database.
+
+The sector + correction idea carries over directly if the sectors are
+**learned** instead of a fixed grid. The sector becomes the nearest of C
+k-means centroids (`log2 C` bits), and the correction is the residual
+`x − centroid`, quantized. This is the IVF-ADC design used by vector search
+libraries such as FAISS.
+
+```bash
+python3 -m modcomp.embed_bench                    # synthetic, D=384
+python3 -m modcomp.embed_bench --input emb.npy    # real embeddings, shape (n, D)
+```
+
+Synthetic run (20k unit vectors, D=384, float32 = 12,288 bits). It mimics
+anisotropic spectrum, topic clusters, a shared mean direction and outlier
+dims. **Results on real embeddings will differ.**
+
+| bits/vec | grid sectors (original idea) | axis sectors fit to data | product quant. | **learned sector + correction** |
+|---:|---|---|---|---|
+| ~1536 | grid s=0.1: 0.366 | scalar-4: 0.753 | — | **kmeans-256 + res-4: 0.851** |
+| ~770 | — | scalar-2: 0.382 | pq-96: 0.480 | **kmeans-256 + pq-96: 0.678** |
+| ~390 | binary: 0.323 | — | pq-48: 0.330 | **kmeans-256 + pq-48: 0.534** |
+| ~200 | — | — | pq-24: 0.227 | **kmeans-256 + pq-24: 0.421** |
+
+(recall@10; references: float16 0.999 at 6144 bits, scalar-8 0.956 at 3072 bits)
+
+What the run shows:
+
+1. **A fixed [0,1] grid wastes most of its sectors.** Unit-norm embedding
+   components cluster near 0 (std ≈ 0.05 here), so a 0.1 grid puts nearly
+   everything in a few sectors. Entropy coding shrinks it (1536 → 351 bits
+   after lzma), but the precision is in the wrong place.
+2. **Fitting the sectors to each dimension's range** (scalar quantization)
+   roughly doubles recall at the same bits.
+3. **Learned sectors + a correction vector win at every budget.** The
+   centroid absorbs the shared mean direction and the topic structure, so
+   the correction has a much smaller range and its bits buy more precision.
+4. Applied to the axis-aligned case, "coarse b1 bits + correction b2 bits"
+   is exactly b1+b2-bit scalar quantization. The split only helps when the
+   coarse part is shared or learned.
+
+Things to try next on real embeddings: a random or PCA rotation before scalar
+quantization (spreads outlier dims), more centroids (1024–65536), re-ranking
+the top candidates with a finer correction, and Matryoshka-style truncation
+if the model supports it.
+
+## Sector grid for [0, 1] vectors (`sector.py`)
+
+### The idea
 
 * Every vector has a known number of dimensions `D`, and each component is a
   magnitude in `[0, 1]`, stored as an `N`-bit integer.
@@ -35,7 +88,7 @@ Storage modes (`modcomp.sector.encode(V, grid, mode)`):
 Corrections are stored bit-packed at `ceil(log2(max sector width))` bits, or
 compressed if that is smaller.
 
-## Usage
+### Usage
 
 ```bash
 python3 -m modcomp.sector_bench                       # all synthetic datasets, 16-bit
@@ -53,7 +106,7 @@ assert (S.decode(blob) == V).all()
 sec, corr = grid.split(V)                  # the two parts directly
 ```
 
-## First results (`python3 -m modcomp.sector_bench`, 16-bit, lzma, seed 0)
+### First results (`python3 -m modcomp.sector_bench`, 16-bit, lzma, seed 0)
 
 Bits per vector. Compare **ordered** with `lzma(raw)`. Compare **grouped**
 with `lzma(sorted raw)`: both discard the order, and discarding the order of n
@@ -110,6 +163,7 @@ modulus, delta-coding `q` along the array order. Run it with
 
 ## Files
 
+* `embed.py`, `embed_bench.py`: embedding methods (grid, scalar, k-means + residual, PQ), recall/cosine evaluation, synthetic embeddings
 * `sector.py`: `SectorGrid`, fixed-point conversion, the `MSEC` container (4 modes), `stats`
 * `sector_bench.py`: synthetic [0,1] datasets and the CLI report
 * `core.py`, `analysis.py`, `bench.py`: earlier integer modulus-split scheme
