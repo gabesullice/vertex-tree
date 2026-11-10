@@ -144,7 +144,7 @@ What the run shows:
    correction, which does not compress: D=3 clusters go from 96 to 88.7
    ordered, and from 78.9 to 74.3 grouped.
 
-## Next things to try
+### Next things to try
 
 * Power-of-two sector counts, or mixed-radix packing of corrections, to win
   back the ~1 bit per component that decimal sectors cost.
